@@ -49,5 +49,9 @@ void isValid_zuKurz_stuerztNichtAb() {
     assertFalse(validator.isValid("DE"));
     assertFalse(validator.isValid("DE89"));
 }
+@Test
+void isValid_oesterreich_20Zeichen() {
+    assertTrue(validator.isValid("AT61 1904 3002 3457 3201"));
+}
         
 }

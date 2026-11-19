@@ -41,8 +41,8 @@ public class IbanValidator {
         {
             return false;
         }
-        // currently check only Germany IBAN
-        if (!ibanCheck.startsWith("DE") && ibanCheck.length() != 22)
+        //  check  Germany IBAN
+        if (ibanCheck.startsWith("DE") && ibanCheck.length() != 22)
         {
             return false;
         }
