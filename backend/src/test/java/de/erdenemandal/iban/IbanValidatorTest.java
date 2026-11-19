@@ -10,7 +10,8 @@ class IbanValidatorTest {
 
     @Test
     void normalize_entferntTrennzeichen() {
-        assertEquals("DE89370400440532013000", validator.normalize("de89 3704-0044.0532 0130 00"));
+     
+        assertEquals("DE89370400440532013000", validator.normalize("de89 3704-0044.0532/-0130 00"));
     }
 
     @Test
@@ -42,5 +43,11 @@ class IbanValidatorTest {
     void isValid_leerOderNull() {
         assertFalse(validator.isValid(""));
         assertFalse(validator.isValid(null));
-    }
+    }   
+    @Test
+void isValid_zuKurz_stuerztNichtAb() {
+    assertFalse(validator.isValid("DE"));
+    assertFalse(validator.isValid("DE89"));
+}
+        
 }
