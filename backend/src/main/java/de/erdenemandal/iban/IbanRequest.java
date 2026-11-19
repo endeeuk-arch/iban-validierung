@@ -1,5 +1,4 @@
 package de.erdenemandal.iban;
 
-public record IbanRequest() {
-
+public record IbanRequest(String iban) {
 }
