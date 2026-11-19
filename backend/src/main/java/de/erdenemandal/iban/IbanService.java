@@ -2,6 +2,7 @@ package de.erdenemandal.iban;
 
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 @Service
 public class IbanService {
 
@@ -28,5 +29,9 @@ public class IbanService {
 
     return new IbanResult(isValid, ibanNorm, bankName);
     
+    }
+
+    public List<IbanCheck> latestChecks() {
+            return repository.findTop20ByOrderByCreatedAtDesc();
     }
 }
