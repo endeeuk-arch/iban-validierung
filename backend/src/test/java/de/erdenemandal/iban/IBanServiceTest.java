@@ -1,12 +1,14 @@
 package de.erdenemandal.iban;
 
 import org.junit.jupiter.api.Test;
+import static org.mockito.Mockito.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class IbanServiceTest {
 
-    private final IbanService service = new IbanService(new IbanValidator(), new BankDirectory());
+    private final IbanCheckRepository repository = mock(IbanCheckRepository.class);
+    private final IbanService service = new IbanService(new IbanValidator(), new BankDirectory(), repository);
 
     @Test
     void eingabeMitLeerzeichen_findetBank() {
@@ -24,4 +26,9 @@ class IbanServiceTest {
         assertFalse(result.valid());
         assertNull(result.bankName());
     }
+    @Test
+    void pruefung_wirdGespeichert() {
+    service.check("DE89 3704 0044 0532 0130 00");
+    verify(repository, times(1)).save(any(IbanCheck.class));
+}
 }

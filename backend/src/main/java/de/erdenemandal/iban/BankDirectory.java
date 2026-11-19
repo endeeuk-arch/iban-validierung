@@ -13,7 +13,7 @@ public class BankDirectory {
             "37050198", "Sparkasse KölnBonn",
             "37070060", "Deutsche Bank");
 
-    /** Erwartet eine normalisierte IBAN. Nur deutsche IBANs haben eine BLZ. */
+    /** Expects a normalized IBAN. Only German IBANs contain a BLZ (bank code). */
     public Optional<String> findBankName(String iban) {
        if (!iban.startsWith("DE")) {
             return Optional.empty();
