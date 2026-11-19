@@ -13,8 +13,7 @@ public class IbanValidator {
      * null -> ""
      */
     public String normalize(String input) {
-        // TODO return empty if input is NULL
-
+       
         if (input ==  null)
         {
             return "";
@@ -23,7 +22,7 @@ public class IbanValidator {
         input = input.replaceAll("[^A-Za-z0-9]", "");
         input = input.toUpperCase();    
         return input;
- //   throw new UnsupportedOperationException("not implemented");
+
     }
 
     /**
