@@ -20,8 +20,6 @@ public class IbanValidator {
             return "";
         }
         // remove whitspaces and convert to Uppercase
-
-        //input = input.replaceAll("\\s", "");
         input = input.replaceAll("[^A-Za-z0-9]", "");
         input = input.toUpperCase();    
         return input;
