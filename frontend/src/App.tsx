@@ -5,14 +5,14 @@ import './App.css'
 type IbanResult = {
   valid: boolean
   iban: string
+  blz: string | null
   bankName: string | null
 }
 
-// table definition
 type IbanCheck = {
   id: number
   iban: string
-  blz: string | null
+  bank: { blz: string; name: string } | null
   valid: boolean
   createdAt: string
 }
@@ -68,25 +68,38 @@ function App() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      {result && (
-        <p className={result.valid ? 'ok' : 'error'}>
-          {result.valid ? '✓ Valid' : '✗ Invalid'}: {result.iban}
-          {result.bankName && ` (${result.bankName})`}
-        </p>
-      )}
+     {result && (
+  <div className={result.valid ? 'result ok' : 'result error'}>
+    <p><strong>{result.valid ? '✓ Valid' : '✗ Invalid'}</strong></p>
+    <p>IBAN: {result.iban}</p>
+    {result.valid && <p>BLZ: {result.blz ?? '-'}</p>}
+    {result.valid && <p>Bank: {result.bankName ?? 'unknown'}</p>}
+  </div>
+)}
 
       <h2>Latest checks</h2>
       <table>
-        <tbody>
-          {history.map(c => (
-            <tr key={c.id}>
-              <td>{c.valid ? '✓' : '✗'}</td>
-              <td>{c.iban}</td>
-              <td>{new Date(c.createdAt).toLocaleString('de-DE')}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>IBAN</th>
+      <th>BLZ</th>
+      <th>Bank</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {history.map(c => (
+      <tr key={c.id}>
+        <td>{c.valid ? '✓' : '✗'}</td>
+        <td>{c.iban}</td>
+        <td>{c.bank?.blz ?? '-'}</td>
+        <td>{c.bank?.name ?? '-'}</td>
+        <td>{new Date(c.createdAt).toLocaleString('de-DE')}</td>
+      </tr>
+    ))}
+  </tbody>
+</table>
     </main>
   )
 }

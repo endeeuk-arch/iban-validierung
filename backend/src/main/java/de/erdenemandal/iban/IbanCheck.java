@@ -7,6 +7,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -14,13 +16,15 @@ import jakarta.persistence.Table;
 public class IbanCheck {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)   // BIGSERIAL: the database generates the ID
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // BIGSERIAL: the database generates the ID
     private Long id;
 
     @Column(nullable = false)
     private String iban;
 
-    private String blz;
+    @ManyToOne
+    @JoinColumn(name = "blz")
+    private Bank bank;
 
     @Column(nullable = false)
     private boolean valid;
@@ -32,16 +36,29 @@ public class IbanCheck {
         // Required by JPA
     }
 
-    public IbanCheck(String iban, String blz, boolean valid) {
-        this.iban = iban;
-        this.blz = blz;
-        this.valid = valid;
-        this.createdAt = Instant.now();
+    public IbanCheck(String iban, Bank bank, boolean valid) {
+    this.iban = iban;
+    this.bank = bank;
+    this.valid = valid;
+    this.createdAt = Instant.now();
+}
+   
+
+    public Long getId() {
+        return id;
     }
 
-    public Long getId() { return id; }
-    public String getIban() { return iban; }
-    public String getBlz() { return blz; }
-    public boolean isValid() { return valid; }
-    public Instant getCreatedAt() { return createdAt; }
+    public String getIban() {
+        return iban;
+    }
+
+   public Bank getBank() { return bank; }
+
+    public boolean isValid() {
+        return valid;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 }
