@@ -10,6 +10,8 @@ Full-Stack-Anwendung zur Prüfung von IBAN-Eingaben, gebaut als Aufgabe für das
 - Prüfung im Backend: Länge (DE genau 22 Zeichen, sonst 15 bis 34) und Prüfziffer nach ISO 13616 (Modulo 97)
 - Bankname für drei bekannte Banken über die Bankleitzahl
 - Anderer Weg: Namensauflösung über die externe API [openiban.com](https://openiban.com), mit Timeout und Fallback
+- Lernendes Bankverzeichnis: Banken aus der externen API werden in der Tabelle `bank` gespeichert, beim nächsten Mal ist kein externer Aufruf mehr nötig
+- Anzeige von IBAN, Bankleitzahl und Bankname im Ergebnis und in der Liste
 - Jede Prüfung wird in PostgreSQL gespeichert, die letzten 20 werden angezeigt
 
 ## Stack
@@ -35,6 +37,7 @@ EC2: iban-service.jar (Port 8080)
          IbanController → IbanService ─┬─ IbanValidator      (Normalisierung, Modulo 97)
                                        ├─ BankDirectory      (drei bekannte Banken)
                                        ├─ ExternalBankClient (openiban.com, Fallback)
+                                       ├─ BankRepository     (gelernte Banken)
                                        └─ IbanCheckRepository
                                                 │
                                                 ▼
@@ -57,7 +60,7 @@ curl -X POST http://localhost:8080/api/iban/validate \
 ```
 
 ```json
-{"valid": true, "iban": "DE89370400440532013000", "bankName": "Commerzbank"}
+{"valid": true, "iban": "DE89370400440532013000", "blz": "37040044", "bankName": "Commerzbank"}
 ```
 
 Swagger UI: `http://localhost:8080/swagger-ui.html`
@@ -80,7 +83,7 @@ CREATE TABLE iban_check (
 );
 ```
 
-Die BLZ wird nur gespeichert, wenn die Bank in der Tabelle `bank` bekannt ist (Fremdschlüssel). Hibernate läuft mit `ddl-auto=validate` und prüft beim Start, ob Entity und Tabelle zusammenpassen.
+Findet die externe API eine Bank, die noch nicht in `bank` steht, wird sie dort gespeichert. Die BLZ in `iban_check` ist ein Fremdschlüssel (`@ManyToOne`), der Bankname steht nur einmal in `bank`. Hibernate läuft mit `ddl-auto=validate` und prüft beim Start, ob Entities und Tabellen zusammenpassen.
 
 ## Lokal starten
 
@@ -113,7 +116,7 @@ cd backend
 mvn test
 ```
 
-17 Unit-Tests für Validator, Bankverzeichnis und Service. Datenbank und externe API werden mit Mockito ersetzt, die Tests brauchen also weder Datenbank noch Internet.
+18 Unit-Tests für Validator, Bankverzeichnis und Service. Datenbank und externe API werden mit Mockito ersetzt, die Tests brauchen also weder Datenbank noch Internet.
 
 ## Build und Deployment
 
@@ -139,6 +142,7 @@ Security Groups: Port 8080 offen, SSH nur von der eigenen IP, die Datenbank nur 
 
 - **POST statt GET für die Prüfung:** Die IBAN ist ein personenbezogenes Datum und soll nicht in URLs, Browser-Verlauf oder Server-Logs landen.
 - **Eigene Prüfung zuerst, externe API als Ergänzung:** Die Prüfziffer wird immer lokal berechnet. Die externe API wird nur für unbekannte Banken gefragt, mit 2 Sekunden Timeout. Fällt sie aus, funktioniert die Anwendung weiter.
+- **Gefundene Banken speichern:** Jede Bank wird höchstens einmal extern abgefragt. Das ist schneller und schickt weniger IBANs an Dritte.
 - **Jede Prüfung wird gespeichert**, auch ungültige, damit eine Historie entsteht.
 - **Keine IBAN in Logs.**
 
