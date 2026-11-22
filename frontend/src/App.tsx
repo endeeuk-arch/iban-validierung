@@ -28,7 +28,7 @@ function App() {
     fetch('/api/iban')
       .then(r => r.json())
       .then(setHistory)
-      .catch(() => setError('Server nicht erreichbar'))
+      .catch(() => setError('Server not reachable'))
   }
 
   // Runs once after the first render
@@ -51,31 +51,31 @@ function App() {
       setResult(await response.json())
       loadHistory()
     } catch {
-      setError('Server nicht erreichbar')
+      setError('Server not reachable')
     }
   }
 
   return (
     <main>
-      <h1>IBAN-Check</h1>
+      <h1>IBAN Check</h1>
       <div className="form">
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
           placeholder="DE89 3704 0044 0532 0130 00"
         />
-        <button onClick={check} disabled={!input.trim()}>Check it</button>
+        <button onClick={check} disabled={!input.trim()}>Check...</button>
       </div>
       {error && <p className="error">{error}</p>}
 
       {result && (
         <p className={result.valid ? 'ok' : 'error'}>
-          {result.valid ? '✓ VALID' : '✗ Not valid'}: {result.iban}
+          {result.valid ? '✓ Valid' : '✗ Invalid'}: {result.iban}
           {result.bankName && ` (${result.bankName})`}
         </p>
       )}
 
-      <h2>Last checks</h2>
+      <h2>Latest checks</h2>
       <table>
         <tbody>
           {history.map(c => (
