@@ -44,6 +44,10 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ iban: input }),
       })
+      if (!response.ok) {
+        throw new Error()
+      }
+
       setResult(await response.json())
       loadHistory()
     } catch {
@@ -54,14 +58,14 @@ function App() {
   return (
     <main>
       <h1>IBAN-Check</h1>
-<div className="form">
-  <input
-    value={input}
-    onChange={e => setInput(e.target.value)}
-    placeholder="DE89 3704 0044 0532 0130 00"
-  />
-  <button onClick={check} disabled={!input.trim()}>Check it</button>
-</div>
+      <div className="form">
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="DE89 3704 0044 0532 0130 00"
+        />
+        <button onClick={check} disabled={!input.trim()}>Check it</button>
+      </div>
       {error && <p className="error">{error}</p>}
 
       {result && (
