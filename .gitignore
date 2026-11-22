@@ -12,3 +12,5 @@ dist/
 .env
 *.env
 application-local.properties
+# Built frontend (copied by build step)
+backend/src/main/resources/static/  
