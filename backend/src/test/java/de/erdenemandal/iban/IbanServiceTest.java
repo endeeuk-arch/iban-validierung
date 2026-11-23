@@ -6,7 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import java.util.Optional;
-
+import de.erdenemandal.iban.ExternalBankClient.BankInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 class IbanServiceTest {
@@ -16,6 +16,8 @@ class IbanServiceTest {
     private final BankRepository bankRepository = mock(BankRepository.class);
     private final IbanService service = new IbanService(
             new IbanValidator(), new BankDirectory(), repository, externalClient, bankRepository);
+
+    private final IbanValidator validator = new IbanValidator();
 
     @Test
     void eingabeMitLeerzeichen_findetBank() {
@@ -42,8 +44,8 @@ class IbanServiceTest {
 
     @Test
     void unbekannteBank_externeApiLiefertNamen() {
-        when(externalClient.findBankName("DE02120300000000202051"))
-                .thenReturn(Optional.of("Deutsche Kreditbank Berlin"));
+        when(externalClient.findBank("DE02120300000000202051"))
+                .thenReturn(Optional.of(new BankInfo("Deutsche Kreditbank Berlin", "BYLADEM1001")));
 
         IbanResult result = service.check("DE02 1203 0000 0000 2020 51");
 
@@ -52,7 +54,7 @@ class IbanServiceTest {
 
     @Test
     void externeApiFaelltAus_keinAbsturz() {
-        when(externalClient.findBankName(any())).thenReturn(Optional.empty());
+        when(externalClient.findBank(any())).thenReturn(Optional.empty());
 
         IbanResult result = service.check("DE02 1203 0000 0000 2020 51");
 
@@ -61,13 +63,36 @@ class IbanServiceTest {
     }
 
     @Test
-void neueBankAusExternerApi_wirdGespeichert() {
-    when(externalClient.findBankName("DE02120300000000202051"))
-            .thenReturn(Optional.of("Deutsche Kreditbank Berlin"));
+    void neueBankAusExternerApi_wirdGespeichert() {
+        when(externalClient.findBank("DE02120300000000202051"))
+                .thenReturn(Optional.of(new BankInfo("Deutsche Kreditbank Berlin", "BYLADEM1001")));
 
-    service.check("DE02 1203 0000 0000 2020 51");
+        service.check("DE02 1203 0000 0000 2020 51");
 
-    verify(bankRepository).save(any(Bank.class));
-}
+        verify(bankRepository).save(any(Bank.class));
+    }
+
+    @Test
+    void falscheLaenge_grundWirdAngezeigt() {
+        IbanResult result = service.check("DE89 3704 0044 0532 0130");
+
+        assertFalse(result.valid());
+        assertEquals("Wrong length: 20 characters, German IBANs have 22", result.error());
+    }
+
+    @Test
+    void findError_falscheLaenge() {
+        assertEquals(IbanError.WRONG_LENGTH, validator.findError("DE89 3704 0044 0532 0130").orElseThrow());
+    }
+
+    @Test
+    void findError_falschePruefziffer() {
+        assertEquals(IbanError.INVALID_CHECK_DIGITS, validator.findError("DE89 3704 0044 0532 0130 01").orElseThrow());
+    }
+
+    @Test
+    void findError_leer() {
+        assertEquals(IbanError.EMPTY, validator.findError("  ").orElseThrow());
+    }
 
 }

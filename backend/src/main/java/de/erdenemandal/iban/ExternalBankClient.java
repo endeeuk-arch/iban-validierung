@@ -28,7 +28,8 @@ public class ExternalBankClient {
                 .build();
     }
 
-    public Optional<String> findBankName(String iban) {
+    /** Bank name and BIC from openiban.com, empty if not found or the API is not reachable. */
+    public Optional<BankInfo> findBank(String iban) {
         try {
             OpenIbanResponse response = restClient.get()
                     .uri("/validate/{iban}?getBIC=true", iban)
@@ -41,8 +42,10 @@ public class ExternalBankClient {
                     || response.bankData().name().isBlank()) {
                 return Optional.empty();
             }
-            return Optional.of(response.bankData().name());
-            
+
+            BankData data = response.bankData();
+            String bic = (data.bic() == null || data.bic().isBlank()) ? null : data.bic();
+            return Optional.of(new BankInfo(data.name(), bic));
 
         } catch (RestClientException e) {
             log.warn("External bank lookup failed: {}", e.getMessage());
@@ -50,7 +53,10 @@ public class ExternalBankClient {
         }
     }
 
+    /** Result for the service: name and BIC of a bank. */
+    public record BankInfo(String name, String bic) {}
+
     record OpenIbanResponse(boolean valid, BankData bankData) {}
 
-    record BankData(String name) {}
+    record BankData(String name, String bic) {}
 }

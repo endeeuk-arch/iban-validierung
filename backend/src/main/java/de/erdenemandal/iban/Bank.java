@@ -19,12 +19,21 @@ public class Bank {
         // Required by JPA
     }
 
-    public Bank(String blz, String name) {
+    public Bank(String blz, String name, String bic) {
         this.blz = blz;
         this.name = name;
+        this.bic = bic;
     }
 
-    public String getBlz() { return blz; }
-    public String getName() { return name; }
-    public String getBic() { return bic; }
+    public String getBlz() {
+        return blz;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getBic() {
+        return bic;
+    }
 }

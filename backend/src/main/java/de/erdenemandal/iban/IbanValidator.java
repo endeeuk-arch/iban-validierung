@@ -1,6 +1,7 @@
 package de.erdenemandal.iban;
 
 import java.math.BigInteger;
+import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
@@ -13,51 +14,50 @@ public class IbanValidator {
      * null -> ""
      */
     public String normalize(String input) {
-       
-        if (input ==  null)
-        {
+
+        if (input == null) {
             return "";
         }
-        // Keep only letters and digits, then convert to upper case
+        // remove whitspaces and convert to Uppercase
         input = input.replaceAll("[^A-Za-z0-9]", "");
-        input = input.toUpperCase();    
+        input = input.toUpperCase();
         return input;
 
     }
 
     /**
-     * Validates an IBAN:
+     * Validates an IBAN and returns the reason if it is invalid:
      * - DE: exactly 22 characters, other countries: 15 to 34 characters
      * - Check digits according to ISO 13616 (modulo 97 == 1)
      */
-    public boolean isValid(String input) {
-     
-        String ibanCheck = normalize(input);
+    public Optional<IbanError> findError(String input) {
+        String iban = normalize(input);
 
-        if (ibanCheck.isEmpty())
-        {
-            return false;
+        if (iban.isEmpty()) {
+            return Optional.of(IbanError.EMPTY);
         }
         // German IBANs must have exactly 22 characters
-        if (ibanCheck.startsWith("DE") && ibanCheck.length() != 22)
-        {
-            return false;
+        if (iban.startsWith("DE") && iban.length() != 22) {
+            return Optional.of(IbanError.WRONG_LENGTH);
+        }
+        if (iban.length() < 15 || iban.length() > 34) {
+            return Optional.of(IbanError.WRONG_LENGTH);
         }
 
-
-        if (ibanCheck.length() < 15 || ibanCheck.length() > 34)
-        {
-            return false;
-        }
-
-        String rearranged = ibanCheck.substring(4) + ibanCheck.substring(0, 4);
+        String rearranged = iban.substring(4) + iban.substring(0, 4);
         StringBuilder digits = new StringBuilder();
-        for (char c: rearranged.toCharArray())
-        {
+        for (char c : rearranged.toCharArray()) {
             digits.append(Character.getNumericValue(c));
         }
-        BigInteger num = new BigInteger(digits.toString());
-        return num.mod(BigInteger.valueOf(97)).intValue() == 1;
-
+        BigInteger number = new BigInteger(digits.toString());
+        if (number.mod(BigInteger.valueOf(97)).intValue() != 1) {
+            return Optional.of(IbanError.INVALID_CHECK_DIGITS);
+        }
+        return Optional.empty();
     }
+
+    public boolean isValid(String input) {
+        return findError(input).isEmpty();
+    }
+
 }

@@ -5,14 +5,17 @@ import './App.css'
 type IbanResult = {
   valid: boolean
   iban: string
+  country: string | null
   blz: string | null
   bankName: string | null
+  bic: string | null
+  error: string | null
 }
 
 type IbanCheck = {
   id: number
   iban: string
-  bank: { blz: string; name: string } | null
+  bank: { blz: string; name: string; bic: string | null } | null
   valid: boolean
   createdAt: string
 }
@@ -71,35 +74,46 @@ function App() {
      {result && (
   <div className={result.valid ? 'result ok' : 'result error'}>
     <p><strong>{result.valid ? '✓ Valid' : '✗ Invalid'}</strong></p>
-    <p>IBAN: {result.iban}</p>
-    {result.valid && <p>BLZ: {result.blz ?? '-'}</p>}
-    {result.valid && <p>Bank: {result.bankName ?? 'unknown'}</p>}
+    {result.iban && <p>IBAN: {result.iban}</p>}
+    {!result.valid && result.error && <p>Reason: {result.error}</p>}
+    {result.valid && <p>Country: {result.country}</p>}
+    {result.valid && result.country === 'DE' && (
+      <>
+        <p>BLZ: {result.blz ?? '-'}</p>
+        <p>Bank: {result.bankName ?? 'unknown'}</p>
+        <p>BIC: {result.bic ?? '-'}</p>
+      </>
+    )}
+    {result.valid && result.country !== 'DE' && (
+      <p>Bank details are only available for German IBANs</p>
+    )}
   </div>
 )}
 
       <h2>Latest checks</h2>
       <table>
-  <thead>
-    <tr>
-      <th></th>
-      <th>IBAN</th>
-      <th>BLZ</th>
-      <th>Bank</th>
-      <th>Date</th>
-    </tr>
-  </thead>
-  <tbody>
-    {history.map(c => (
-      <tr key={c.id}>
-        <td>{c.valid ? '✓' : '✗'}</td>
-        <td>{c.iban}</td>
-        <td>{c.bank?.blz ?? '-'}</td>
-        <td>{c.bank?.name ?? '-'}</td>
-        <td>{new Date(c.createdAt).toLocaleString('de-DE')}</td>
-      </tr>
-    ))}
-  </tbody>
-</table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>IBAN</th>
+            <th>BLZ</th>
+            <th>Bank</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {history.map(c => (
+            <tr key={c.id}>
+
+              <td className={c.valid ? 'ok' : 'error'}>{c.valid ? '✓' : '✗'}</td>
+              <td>{c.iban}</td>
+              <td>{c.bank?.blz ?? '-'}</td>
+              <td>{c.bank?.name ?? '-'}</td>
+              <td>{new Date(c.createdAt).toLocaleString('de-DE')}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </main>
   )
 }

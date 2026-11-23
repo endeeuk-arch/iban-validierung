@@ -1,6 +1,7 @@
 package de.erdenemandal.iban;
 
 import org.springframework.stereotype.Service;
+import de.erdenemandal.iban.ExternalBankClient.BankInfo;
 
 import java.util.List;
 import java.util.Optional;
@@ -23,30 +24,43 @@ public class IbanService {
         this.externalBankClient = externalBankClient;
     }
 
-    public IbanResult check(String input) {
+        public IbanResult check(String input) {
         String ibanNorm = validator.normalize(input);
-        boolean isValid = validator.isValid(ibanNorm);
+        Optional<IbanError> error = validator.findError(ibanNorm);
+        boolean isValid = error.isEmpty();
 
+        String country = ibanNorm.length() >= 2 ? ibanNorm.substring(0, 2) : null;
         // Bank code (BLZ) is part of every valid German IBAN
-        String blz = isValid && ibanNorm.startsWith("DE") ? ibanNorm.substring(4, 12) : null;
+        String blz = isValid && "DE".equals(country) ? ibanNorm.substring(4, 12) : null;
 
-        // Bank name: known banks → saved banks → external API
-        String bankName = !isValid ? null
-                : bankDirectory.findBankName(ibanNorm)
-                        .or(() -> blz == null ? Optional.empty() : bankRepository.findById(blz).map(Bank::getName))
-                        .or(() -> externalBankClient.findBankName(ibanNorm))
-                        .orElse(null);
+        // Bank: saved banks (with BIC) -> three known banks -> external API
+        Optional<Bank> savedBank = blz == null ? Optional.empty() : bankRepository.findById(blz);
+        Optional<BankInfo> info = !isValid ? Optional.empty()
+                : savedBank.map(b -> new BankInfo(b.getName(), b.getBic()))
+                        .or(() -> bankDirectory.findBankName(ibanNorm).map(name -> new BankInfo(name, null)))
+                        .or(() -> externalBankClient.findBank(ibanNorm));
 
         // Save a newly found bank, so the next lookup needs no external call
-        Bank bank = null;
-        if (blz != null && bankName != null) {
-            bank = bankRepository.findById(blz)
-                    .orElseGet(() -> bankRepository.save(new Bank(blz, bankName)));
+        Bank bank = savedBank.orElse(null);
+        if (bank == null && blz != null && info.isPresent()) {
+            bank = bankRepository.save(new Bank(blz, info.get().name(), info.get().bic()));
         }
 
         repository.save(new IbanCheck(ibanNorm, bank, isValid));
 
-        return new IbanResult(isValid, ibanNorm, blz, bankName);
+        return new IbanResult(isValid, ibanNorm, country, blz,
+                info.map(BankInfo::name).orElse(null),
+                info.map(BankInfo::bic).orElse(null),
+                error.map(e -> errorText(e, ibanNorm)).orElse(null));
+    }
+
+    private String errorText(IbanError error, String iban) {
+        return switch (error) {
+            case EMPTY -> "Please enter an IBAN";
+            case WRONG_LENGTH -> "Wrong length: " + iban.length() + " characters"
+                    + (iban.startsWith("DE") ? ", German IBANs have 22" : "");
+            case INVALID_CHECK_DIGITS -> "Check digits do not match (typo?)";
+        };
     }
 
     public List<IbanCheck> latestChecks() {
