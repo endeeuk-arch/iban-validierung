@@ -14,7 +14,7 @@ public class IbanService {
     private final ExternalBankClient externalBankClient;
     private final BankRepository bankRepository;
 
-    public IbanService(IbanValidator validator,  IbanCheckRepository repository,
+    public IbanService(IbanValidator validator, IbanCheckRepository repository,
             ExternalBankClient externalBankClient, BankRepository bankRepository) {
         this.validator = validator;
         this.repository = repository;
@@ -22,7 +22,7 @@ public class IbanService {
         this.externalBankClient = externalBankClient;
     }
 
-        public IbanResult check(String input) {
+    public IbanResult check(String input) {
         String ibanNorm = validator.normalize(input);
         Optional<IbanError> error = validator.findError(ibanNorm);
         boolean isValid = error.isEmpty();
@@ -32,14 +32,18 @@ public class IbanService {
         String blz = isValid && "DE".equals(country) ? ibanNorm.substring(4, 12) : null;
 
         // Bank: saved banks (with BIC) -> external API
-        Optional<Bank> savedBank = blz == null ? Optional.empty() : bankRepository.findById(blz);
-        Optional<BankInfo> info = !isValid ? Optional.empty()
-                : savedBank.map(b -> new BankInfo(b.getName(), b.getBic()))
-                        .or(() -> externalBankClient.findBank(ibanNorm));
+        Optional<Bank> savedBank = blz == null
+                ? Optional.empty() // BLZ is empty
+                : bankRepository.findById(blz); // search from DB with the given BLZ
+
+        Optional<BankInfo> info = !isValid
+                ? Optional.empty() // invalid IBAN, no bank info
+                : savedBank.map(b -> new BankInfo(b.getName(), b.getBic())) // BANK found in DB
+                        .or(() -> externalBankClient.findBank(ibanNorm)); // if not found in DB, call external API
 
         // Save a newly found bank, so the next lookup needs no external call
         Bank bank = savedBank.orElse(null);
-        if (bank == null && blz != null && info.isPresent()) {
+        if (bank == null && blz != null && info.isPresent()) { // save only if BLZ is present and bank info is found
             bank = bankRepository.save(new Bank(blz, info.get().name(), info.get().bic()));
         }
 
