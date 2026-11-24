@@ -1,57 +1,59 @@
-# IBAN-Validierung
+# IBAN Validation
 
-Full-Stack-Anwendung zur Prüfung von IBAN-Eingaben, gebaut als Aufgabe für das Multibanking-Team von Lexware.
+Full-stack application that validates IBAN input, built as a coding task for the Lexware Multibanking team.
 
-**Live-Demo:** http://3.75.184.115:8080
+**Live demo:** http://3.75.184.115:8080
 
-## Funktionen
+## Features
 
-- Freie Eingabe inklusive Trennzeichen (Leerzeichen, `-`, `.`, `/`), Groß- und Kleinschreibung
-- Prüfung im Backend: Länge (DE genau 22 Zeichen, sonst 15 bis 34) und Prüfziffer nach ISO 13616 (Modulo 97)
-- Bankname für drei bekannte Banken über die Bankleitzahl
-- Anderer Weg: Namensauflösung über die externe API [openiban.com](https://openiban.com), mit Timeout und Fallback
-- Lernendes Bankverzeichnis: Banken aus der externen API werden in der Tabelle `bank` gespeichert, beim nächsten Mal ist kein externer Aufruf mehr nötig
-- Anzeige von IBAN, Bankleitzahl und Bankname im Ergebnis und in der Liste
-- Jede Prüfung wird in PostgreSQL gespeichert, die letzten 20 werden angezeigt
+- Free input including separators (spaces, `-`, `.`, `/`), upper and lower case
+- Validation in the backend: length (DE exactly 22 characters, other countries 15 to 34) and check digits according to ISO 13616 (modulo 97)
+- Reason for invalid IBANs (empty, wrong length, wrong check digits) and the country code
+- Bank name and BIC for German IBANs via the bank code (BLZ)
+- Three known banks are loaded as start data into the table `bank` (`data.sql`)
+- Another way: name and BIC lookup via the external API [openiban.com](https://openiban.com), with timeout and fallback
+- Learning bank directory: banks found via the external API are saved in `bank`, so the next lookup needs no external call
+- Every check is stored in PostgreSQL, the latest 20 are shown with IBAN, BLZ and bank name
 
 ## Stack
 
-| Bereich | Technik |
+| Area | Technology |
 |---|---|
 | Backend | Java 21, Spring Boot 3.5, Spring Web, Spring Data JPA |
 | Frontend | React 19, TypeScript, Vite |
-| Datenbank | PostgreSQL 18 (AWS RDS) |
-| Betrieb | AWS EC2 (Amazon Linux 2023, t3.micro) |
+| Database | PostgreSQL 18 (AWS RDS) |
+| Hosting | AWS EC2 (Amazon Linux 2023, t3.micro) |
 | Tests | JUnit 5, Mockito |
-| API-Doku | springdoc-openapi (Swagger UI) |
+| API docs | springdoc-openapi (Swagger UI) |
 
-## Architektur
+## Architecture
 
 ```
 Browser
    │  HTTP
    ▼
-EC2: iban-service.jar (Port 8080)
-   ├── React-Oberfläche (statische Dateien)
-   └── REST-API
-         IbanController → IbanService ─┬─ IbanValidator      (Normalisierung, Modulo 97)
-                                       ├─ BankDirectory      (drei bekannte Banken)
-                                       ├─ ExternalBankClient (openiban.com, Fallback)
-                                       ├─ BankRepository     (gelernte Banken)
+EC2: iban-service.jar (port 8080)
+   ├── React UI (static files)
+   └── REST API
+         IbanController → IbanService ─┬─ IbanValidator      (normalization, modulo 97)
+                                       ├─ BankRepository     (known and learned banks)
+                                       ├─ ExternalBankClient (openiban.com, fallback)
                                        └─ IbanCheckRepository
                                                 │
                                                 ▼
                                         RDS PostgreSQL
 ```
 
-## REST-API
+Bank lookup order: table `bank` (name and BIC) → openiban.com → save the new bank in `bank`.
 
-| Methode | Pfad | Beschreibung |
+## REST API
+
+| Method | Path | Description |
 |---|---|---|
-| `POST` | `/api/iban/validate` | Prüft eine IBAN und speichert das Ergebnis |
-| `GET` | `/api/iban` | Liefert die letzten 20 Prüfungen |
+| `POST` | `/api/iban/validate` | Validates an IBAN and stores the result |
+| `GET` | `/api/iban` | Returns the latest 20 checks |
 
-Beispiel:
+Example:
 
 ```bash
 curl -X POST http://localhost:8080/api/iban/validate \
@@ -60,12 +62,20 @@ curl -X POST http://localhost:8080/api/iban/validate \
 ```
 
 ```json
-{"valid": true, "iban": "DE89370400440532013000", "blz": "37040044", "bankName": "Commerzbank"}
+{"valid": true, "iban": "DE89370400440532013000", "country": "DE", "blz": "37040044",
+ "bankName": "Commerzbank", "bic": "COBADEFFXXX", "error": null}
+```
+
+Invalid IBAN:
+
+```json
+{"valid": false, "iban": "DE89370400440532013001", "country": "DE", "blz": null,
+ "bankName": null, "bic": null, "error": "Check digits do not match (typo?)"}
 ```
 
 Swagger UI: `http://localhost:8080/swagger-ui.html`
 
-## Datenmodell
+## Data model
 
 ```sql
 CREATE TABLE bank (
@@ -83,13 +93,13 @@ CREATE TABLE iban_check (
 );
 ```
 
-Findet die externe API eine Bank, die noch nicht in `bank` steht, wird sie dort gespeichert. Die BLZ in `iban_check` ist ein Fremdschlüssel (`@ManyToOne`), der Bankname steht nur einmal in `bank`. Hibernate läuft mit `ddl-auto=validate` und prüft beim Start, ob Entities und Tabellen zusammenpassen.
+At startup, `data.sql` inserts the three known banks with BIC (`ON CONFLICT DO NOTHING`, so it can run on every start). If the external API finds a bank that is not yet in `bank`, it is saved there. The BLZ in `iban_check` is a foreign key (`@ManyToOne`), the bank name is stored only once in `bank`. Hibernate runs with `ddl-auto=validate` and checks at startup that entities and tables match.
 
-## Lokal starten
+## Run locally
 
-Voraussetzungen: Java 21, Maven, Node.js, eine PostgreSQL-Datenbank mit den Tabellen oben.
+Requirements: Java 21, Maven, Node.js, a PostgreSQL database with the tables above.
 
-**Backend** (Zugangsdaten kommen aus Umgebungsvariablen, nicht aus dem Code):
+**Backend** (credentials come from environment variables, not from the code):
 
 ```bash
 cd backend
@@ -99,7 +109,7 @@ read -s DB_PASSWORD && export DB_PASSWORD
 mvn spring-boot:run
 ```
 
-**Frontend** (Entwicklungsserver mit Proxy auf das Backend):
+**Frontend** (dev server with a proxy to the backend):
 
 ```bash
 cd frontend
@@ -107,7 +117,7 @@ npm install
 npm run dev
 ```
 
-Dann http://localhost:5173 öffnen.
+Then open http://localhost:5173.
 
 ## Tests
 
@@ -116,11 +126,11 @@ cd backend
 mvn test
 ```
 
-18 Unit-Tests für Validator, Bankverzeichnis und Service. Datenbank und externe API werden mit Mockito ersetzt, die Tests brauchen also weder Datenbank noch Internet.
+22 unit tests for the validator and the service. The database and the external API are replaced with Mockito, so the tests need neither a database nor the internet.
 
-## Build und Deployment
+## Build and deployment
 
-Frontend und Backend werden zu einem JAR zusammengefasst:
+Frontend and backend are packaged into one JAR:
 
 ```bash
 cd frontend && npm run build
@@ -129,29 +139,32 @@ cp -r dist/* ../backend/src/main/resources/static/
 cd ../backend && mvn package
 ```
 
-Auf EC2 (Java 21 installiert, Umgebungsvariablen wie oben gesetzt):
+On EC2 (Java 21 installed, environment variables set as above):
 
 ```bash
 scp -i <key>.pem target/iban-service-0.1.0.jar ec2-user@<ec2-ip>:~
 nohup java -jar iban-service-0.1.0.jar > app.log 2>&1 &
 ```
 
-Security Groups: Port 8080 offen, SSH nur von der eigenen IP, die Datenbank nur aus der Security Group des Servers.
+Security groups: port 8080 open, SSH only from my own IP, the database only from the server's security group.
 
-## Entscheidungen
+## Decisions
 
-- **POST statt GET für die Prüfung:** Die IBAN ist ein personenbezogenes Datum und soll nicht in URLs, Browser-Verlauf oder Server-Logs landen.
-- **Eigene Prüfung zuerst, externe API als Ergänzung:** Die Prüfziffer wird immer lokal berechnet. Die externe API wird nur für unbekannte Banken gefragt, mit 2 Sekunden Timeout. Fällt sie aus, funktioniert die Anwendung weiter.
-- **Gefundene Banken speichern:** Jede Bank wird höchstens einmal extern abgefragt. Das ist schneller und schickt weniger IBANs an Dritte.
-- **Jede Prüfung wird gespeichert**, auch ungültige, damit eine Historie entsteht.
-- **Keine IBAN in Logs.**
+- **POST instead of GET for the check:** an IBAN is personal data and should not end up in URLs, browser history or server logs.
+- **Own validation first, external API as an addition:** the check digits are always calculated locally. The external API is only asked for unknown banks, with a 2-second timeout. If it fails, the application keeps working.
+- **One source of truth for banks:** the three known banks are start data in the database instead of a second list in the code.
+- **Save found banks:** each bank is looked up externally at most once. This is faster and sends fewer IBANs to third parties.
+- **Every check is stored**, including invalid ones, to build a history.
+- **No IBANs in logs.**
 
-## Nächste Schritte
+## Next steps
 
-- HTTPS über einen Load Balancer, Betrieb in ECS/Fargate statt einer einzelnen EC2-Instanz
-- Datenbank nur im privaten Subnetz, Zugangsdaten im AWS Secrets Manager
-- CI/CD mit GitHub Actions (Tests, Build, Deployment)
-- Vollständige BLZ-Liste der Bundesbank statt drei fester Banken
-- Validierung der Anfrage mit `@NotBlank` und Antwort `400` bei fehlendem Feld
-- Login und maskierte IBANs in der Liste (z. B. `DE89 **** 3000`)
-- Abgleich von Kontoinhaber und IBAN (Verification of Payee)
+- HTTPS via a load balancer, run on ECS/Fargate instead of a single EC2 instance
+- Database only in a private subnet, credentials in AWS Secrets Manager
+- CI/CD with GitHub Actions (tests, build, deployment)
+- Schema changes and start data with Flyway migrations
+- Integration tests with Testcontainers and MockMvc
+- Full Bundesbank BLZ list instead of the external API
+- Request validation with `@NotBlank` and a `400` response for a missing field, `@Transactional` for saving
+- Login and masked IBANs in the list (e.g. `DE89 **** 3000`)
+- Matching account holder and IBAN (Verification of Payee)

@@ -15,12 +15,15 @@ class IbanServiceTest {
     private final ExternalBankClient externalClient = mock(ExternalBankClient.class);
     private final BankRepository bankRepository = mock(BankRepository.class);
     private final IbanService service = new IbanService(
-            new IbanValidator(), new BankDirectory(), repository, externalClient, bankRepository);
+            new IbanValidator(), repository, externalClient, bankRepository);
 
     private final IbanValidator validator = new IbanValidator();
 
     @Test
     void eingabeMitLeerzeichen_findetBank() {
+        when(bankRepository.findById("37040044"))
+                .thenReturn(Optional.of(new Bank("37040044", "Commerzbank", "COBADEFFXXX")));
+
         IbanResult result = service.check("de89 3704 0044 0532 0130 00");
 
         assertTrue(result.valid());

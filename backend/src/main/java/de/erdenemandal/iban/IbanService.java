@@ -10,15 +10,13 @@ import java.util.Optional;
 public class IbanService {
 
     private final IbanValidator validator;
-    private final BankDirectory bankDirectory;
     private final IbanCheckRepository repository;
     private final ExternalBankClient externalBankClient;
     private final BankRepository bankRepository;
 
-    public IbanService(IbanValidator validator, BankDirectory bankDirectory, IbanCheckRepository repository,
+    public IbanService(IbanValidator validator,  IbanCheckRepository repository,
             ExternalBankClient externalBankClient, BankRepository bankRepository) {
         this.validator = validator;
-        this.bankDirectory = bankDirectory;
         this.repository = repository;
         this.bankRepository = bankRepository;
         this.externalBankClient = externalBankClient;
@@ -33,11 +31,10 @@ public class IbanService {
         // Bank code (BLZ) is part of every valid German IBAN
         String blz = isValid && "DE".equals(country) ? ibanNorm.substring(4, 12) : null;
 
-        // Bank: saved banks (with BIC) -> three known banks -> external API
+        // Bank: saved banks (with BIC) -> external API
         Optional<Bank> savedBank = blz == null ? Optional.empty() : bankRepository.findById(blz);
         Optional<BankInfo> info = !isValid ? Optional.empty()
                 : savedBank.map(b -> new BankInfo(b.getName(), b.getBic()))
-                        .or(() -> bankDirectory.findBankName(ibanNorm).map(name -> new BankInfo(name, null)))
                         .or(() -> externalBankClient.findBank(ibanNorm));
 
         // Save a newly found bank, so the next lookup needs no external call
